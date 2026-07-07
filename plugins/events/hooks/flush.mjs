@@ -12,6 +12,7 @@ import {
   LOG_FILE,
   acquireFlushLock,
   clearPending,
+  clearToken,
   devicePoll,
   readPending,
   readSpoolLines,
@@ -22,6 +23,9 @@ import {
 } from './lib.mjs'
 
 const BATCH = 200
+// Safety valve: bound the local queue so a long outage can't grow it forever.
+// ~50k events is months of normal use; only the oldest beyond this are dropped.
+const SPOOL_CAP = 50_000
 
 function log(line) {
   try {
@@ -68,10 +72,18 @@ async function postBatch(token, events) {
 async function main() {
   if (!acquireFlushLock()) return // another flusher is already running
   try {
+    // Enforce the queue cap first, regardless of link state, so an unlinked or
+    // long-offline machine can't grow the spool without bound.
+    let lines = readSpoolLines()
+    if (lines.length > SPOOL_CAP) {
+      const dropped = lines.length - SPOOL_CAP
+      lines = lines.slice(lines.length - SPOOL_CAP) // keep the newest
+      writeSpoolLines(lines)
+      log(`${new Date().toISOString()} FLUSH cap: dropped ${dropped} oldest event(s) (queue > ${SPOOL_CAP})`)
+    }
+
     const token = await resolveToken()
     if (!token) return // not linked yet — keep everything queued
-
-    const lines = readSpoolLines()
     if (!lines.length) return
 
     const events = []
@@ -96,10 +108,15 @@ async function main() {
           for (const e of chunk) if (e.eventId) sent.add(e.eventId)
           log(`${new Date().toISOString()} FLUSH sent ${chunk.length} HTTP ${res.status}`)
         } else {
-          // 401 → token no longer valid: stop, keep queue for a fresh link.
           const body = (await res.text()).slice(0, 200)
           log(`${new Date().toISOString()} FLUSH HTTP ${res.status} — keeping ${chunk.length} queued. ${body}`)
-          if (res.status === 401) break
+          if (res.status === 401) {
+            // Token revoked/invalid: drop it so SessionStart re-links this
+            // machine automatically. Events stay queued and flush once relinked.
+            clearToken()
+            log(`${new Date().toISOString()} FLUSH token invalid → cleared; will re-link on next session`)
+            break
+          }
         }
       } catch (e) {
         log(`${new Date().toISOString()} FLUSH ERROR ${String(e).slice(0, 200)} — keeping queued`)

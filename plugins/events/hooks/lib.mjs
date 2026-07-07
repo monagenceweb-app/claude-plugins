@@ -61,6 +61,16 @@ export function writeToken(token) {
   }
 }
 
+/** Remove the stored token — used when the server rejects it (revoked/invalid)
+ *  so SessionStart re-triggers the device flow and the link self-heals. */
+export function clearToken() {
+  try {
+    rmSync(TOKEN_FILE)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function readPending() {
   try {
     const p = JSON.parse(readFileSync(PENDING_FILE, 'utf8'))
