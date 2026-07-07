@@ -3,7 +3,8 @@
 // device flow and surface the approval URL + code to the user (via the
 // hook's additionalContext). No blocking, no daemon — once the user
 // approves, log-event.mjs redeems the token on the next event.
-import { deviceLabel, deviceStart, readPending, readToken, writePending } from './lib.mjs'
+import { fileURLToPath } from 'node:url'
+import { deviceLabel, deviceStart, readPending, readToken, triggerFlush, writePending } from './lib.mjs'
 
 function emit(message) {
   process.stdout.write(
@@ -12,6 +13,10 @@ function emit(message) {
     }),
   )
 }
+
+// Always try to drain any events left queued from a previous session (crash,
+// offline, server outage). Detached, so it never delays the session start.
+triggerFlush(fileURLToPath(new URL('./flush.mjs', import.meta.url)))
 
 if (readToken()) process.exitCode = 0
 

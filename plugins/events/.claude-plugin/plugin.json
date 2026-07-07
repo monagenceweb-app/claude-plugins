@@ -1,6 +1,6 @@
 {
   "name": "events",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Logue les events Claude Code vers Mon Agence Web (temps passé, modèles, tokens, coûts par collaborateur et par projet). Liaison OAuth (device flow), zéro token à copier.",
   "author": { "name": "Mon Agence Web", "email": "do.ham@jvais.net" },
   "homepage": "https://app.monagence.pro",

@@ -13,7 +13,7 @@
       "name": "events",
       "source": "./plugins/events",
       "description": "Logue les events Claude Code (prompts, tools, tokens, modèle, durée) vers Mon Agence Web. Liaison OAuth device flow, zéro token à copier ; dépend uniquement de node.",
-      "version": "2.0.1",
+      "version": "2.1.0",
       "author": { "name": "Mon Agence Web" },
       "homepage": "https://app.monagence.pro",
       "keywords": ["analytics", "events", "tracking", "hooks"]
